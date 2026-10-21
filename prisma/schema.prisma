@@ -1,0 +1,53 @@
+// Udhaar (credit) ledger for local merchants: customers buy on credit and pay back over time.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Merchant {
+  id         String     @id @default(cuid())
+  shopName   String
+  apiKeyHash String     @unique
+  createdAt  DateTime   @default(now())
+  customers  Customer[]
+  entries    Entry[]
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  name       String
+  phone      String
+  createdAt  DateTime @default(now())
+  entries    Entry[]
+
+  @@unique([merchantId, phone])
+  @@index([merchantId, name])
+}
+
+enum EntryType {
+  CREDIT_SALE // customer took goods on credit: outstanding goes up
+  PAYMENT     // customer paid: outstanding goes down
+}
+
+model Entry {
+  id             String    @id @default(cuid())
+  merchantId     String
+  merchant       Merchant  @relation(fields: [merchantId], references: [id])
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id])
+  type           EntryType
+  amountPaise    Int
+  note           String    @default("")
+  idempotencyKey String
+  createdAt      DateTime  @default(now())
+
+  @@unique([merchantId, idempotencyKey])
+  @@index([customerId, createdAt])
+}
